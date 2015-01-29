@@ -1,6 +1,6 @@
 import ptp2
 import numpy as np
-import cv2
+# import cv2
 
 cam_address = ptp2.util.list_ptp_cameras().__next__() # Only one device is attached.
 # print(cam_address)
@@ -32,10 +32,10 @@ for raw_indx, k in enumerate(live_data.vp_data):
 
 # Reshape the array into a rectangle
 lv_image.reshape((vp_height, vp_width), order='C')
-#camera.execute_lua("print('hi')")
-#np.set_printoptions(threshold=np.inf)
-#print(lv_image)
+# camera.execute_lua("print('hi')")
+# np.set_printoptions(threshold=np.inf)
+# print(lv_image)
 # img = cv2.imread(lv_image)
-#cv2.imshow('image', lv_image)
-#cv2.waitKey(0)
-#cv2.destroyAllWindows()
+# cv2.imshow('image', lv_image)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()

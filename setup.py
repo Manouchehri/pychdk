@@ -4,7 +4,7 @@ setup(
     name='pychdk',
     version='0.1',
     author='David Manouchehri',
-    author_email='David Manouchehri',
+    author_email='david@davidmanouchehri.com',
     description='Python module for controlling CHDK cameras through USB PTP.',
     url="https://github.com/Manouchehri/pychdk",
     # long_description=__doc__,
