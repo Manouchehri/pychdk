@@ -40,8 +40,8 @@ Zachary Berkowitz
 zac.berkowitz@gmail.com
 '''
 
-from camera import *
-import util
+from ptp2.camera import *
+import ptp2.util
 
 class PTPError(Exception):
 

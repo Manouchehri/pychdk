@@ -1,4 +1,5 @@
 import struct
+import binascii
 
 try:
     import numpy as np
@@ -272,7 +273,7 @@ class CHDK_LV_Data(object):
             vp_size = self.vp_desc.buffer_width * self.vp_desc.visible_height * 6 / 4
             lb = self.vp_desc.data_start
             ub = lb + vp_size
-            self.vp_data = fromstring(bytestr[lb:ub], 'B')
+            self.vp_data = fromstring(bytestr[lb:int(ub)], 'B')
 
         if self.bm_desc.data_start > 0:
             bm_size = self.bm_desc.buffer_width * self.bm_desc.visible_height
@@ -378,12 +379,11 @@ class ParamContainer(_PyStructure):
         self.length = 12 + 4*len(param_list)
         self._params = param_list
 
-
     def __repr__(self):
         return '<{m}.{n} at {i:x} length={l} type={t} code={c:x} txid={tx} params={p}>'.format(
             m=self.__class__.__module__, n=self.__class__.__name__, i=id(self), l=self.length,
             t=self.type, c=self.code, tx=self.transaction_id,
-            p=['0x'+struct.pack('>i', x).encode('hex') for x in self.params])
+            p=['0x'+binascii.hexlify(struct.pack('>i', x)).decode('utf-8') for x in self.params])
 
 
 

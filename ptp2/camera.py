@@ -1,13 +1,14 @@
 import logging
 import usb
 import struct
+import binascii
 import time
 from os import path
 
-import util
-from typedefs import *
-from chdk_ptp_values import *
-from ptp_values import StandardResponses
+import ptp2.util
+from ptp2.typedefs import *
+from ptp2.chdk_ptp_values import *
+from ptp2.ptp_values import StandardResponses
 
 __all__ = ['PTPCamera', 'CHDKCamera']
 
@@ -33,7 +34,7 @@ class _CameraBase(object):
 
     def open(self, usb_device):
 
-        intf = util.get_ptp_interface(usb_device)
+        intf = ptp2.util.get_ptp_interface(usb_device)
 
         if intf is None:
             raise TypeError('USB Device %s not a PTP Camera' %(usb_device))
@@ -97,12 +98,12 @@ class _CameraBase(object):
 
 
     def send_ptp_message(self, bytestr, timeout=0):
-        self.logger.debug('Sending ' + bytestr.encode('hex'))
+        self.logger.debug('Sending ' + binascii.hexlify(bytestr).decode('utf-8')) #.encode('hex'))
         return self._bulk_write(bytestr, timeout)
 
     def recv_ptp_message(self, timeout=0):
         buf = self._bulk_read(size=512, timeout=timeout)
-        self.logger.debug('Received ' + buf.encode('hex'))
+        self.logger.debug('Received ' + binascii.hexlify(buf).decode('utf-8'))
         msg_len = struct.unpack('<I', buf[:4])[0]
         bytes_left = msg_len - 512
         if bytes_left > 0:
@@ -192,7 +193,7 @@ class PTPCamera(_CameraBase):
         self.logger.setLevel(log_level)
 
         if usb_device is None:
-            cams = util.list_ptp_cameras()
+            cams = ptp2.util.list_ptp_cameras()
             if not cams:
                 raise IOError('No PTP Devices Found')
             usb_device = cams[0]

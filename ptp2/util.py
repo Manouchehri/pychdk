@@ -5,12 +5,14 @@ log = logging.getLogger(__name__)
 
 __all__ = ['is_ptp_camera', 'get_ptp_interface', 'list_ptp_cameras', 'find_camera_by_serial']
 
+
 def is_ptp_camera(usb_device, interfaceClass=6):
 
     if get_ptp_interface(usb_device, interfaceClass) is not None:
         return True
     else:
         return False
+
 
 def get_ptp_interface(usb_device, interfaceClass=6):
 
@@ -21,6 +23,7 @@ def get_ptp_interface(usb_device, interfaceClass=6):
             return intf
 
     return None 
+
 
 def list_ptp_cameras():
     usb_devices = usb.core.find(find_all=True)
@@ -47,8 +50,7 @@ def find_camera_by_serial(serial, partial_ok=False):
         try:
             dev_serial = usb.util.get_string(dev, 50, serial_number_str_indx)
         except:
-            log.debug('Could not retrieve serial number from %s (str indx %d)', str(dev),
-                serial_number_str_indx)
+            log.debug('Could not retrieve serial number from %s (str indx %d)', str(dev), serial_number_str_indx)
             continue
 
         if not dev_serial.endswith('\x00'):
