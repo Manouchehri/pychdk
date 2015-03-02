@@ -32,7 +32,8 @@ for raw_indx, k in enumerate(live_data.vp_data):
 
 # Reshape the array into a rectangle
 lv_image.reshape((vp_height, vp_width), order='C')
-# camera.execute_lua("print('hi')")
+camera.execute_lua("click(\"menu\")")
+
 # np.set_printoptions(threshold=np.inf)
 # print(lv_image)
 # img = cv2.imread(lv_image)

@@ -416,7 +416,7 @@ class DataContainer(_PyStructure):
     def pack(self):
         header = _PyStructure.pack(self)
 
-        return header + self.data
+        return header + self.data.encode('ascii')
 
     @property
     def data(self):
