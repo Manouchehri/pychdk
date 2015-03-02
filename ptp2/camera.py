@@ -12,15 +12,15 @@ from ptp2.ptp_values import StandardResponses
 
 __all__ = ['PTPCamera', 'CHDKCamera']
 
+
 class _CameraBase(object):
-
     def __init__(self, usb_device=None, log_level=logging.WARNING):
-        self._intf      = None
-        self._handle    = None
+        self._intf = None
+        self._handle = None
 
-        self._ep_in     = None
-        self._ep_out    = None
-        self._ep_intr   = None
+        self._ep_in = None
+        self._ep_out = None
+        self._ep_intr = None
 
         self.logger = logging.getLogger('_CameraBase')
         self.logger.setLevel(log_level)
@@ -37,15 +37,15 @@ class _CameraBase(object):
         intf = ptp2.util.get_ptp_interface(usb_device)
 
         if intf is None:
-            raise TypeError('USB Device %s not a PTP Camera' %(usb_device))
+            raise TypeError('USB Device %s not a PTP Camera' % (usb_device))
 
         self._intf = intf
         self._handle = usb_device
 
-        #Grab endpoints
+        # Grab endpoints
         for ep in self._intf:
             ep_type = usb.util.endpoint_type(ep.bmAttributes)
-            ep_dir  = usb.util.endpoint_direction(ep.bEndpointAddress)
+            ep_dir = usb.util.endpoint_direction(ep.bEndpointAddress)
 
             if ep_type == usb.util.ENDPOINT_TYPE_BULK:
                 if ep_dir == usb.util.ENDPOINT_IN:
@@ -58,17 +58,16 @@ class _CameraBase(object):
                 self._ep_intr = ep.bEndpointAddress
 
     def close(self):
-        #Excplicity release usb device
+        # Excplicity release usb device
         if self._handle is not None:
             usb.util.dispose_resources(self._handle)
 
         # _, self._handle = self._handle, None
-        _, self._intf   = self._intf, None
+        _, self._intf = self._intf, None
 
-        self._ep_in     = None
-        self._ep_out    = None
-        self._ep_intr   = None
-
+        self._ep_in = None
+        self._ep_out = None
+        self._ep_intr = None
 
     def reopen(self):
         if self._handle is None:
@@ -86,7 +85,6 @@ class _CameraBase(object):
     def _bulk_read(self, size, timeout=0):
         return self._handle.read(self._ep_in, size, timeout=timeout).tostring()
 
-
     def check_event(self, size=512, timeout=5000):
         buf = self._handle.read(self._ep_intr, size=size, timeout=timeout).tostring()
         p = ParamContainer(buf)
@@ -96,9 +94,8 @@ class _CameraBase(object):
             raise ValueError('Received non-event container of type {t} on interrupt endpoint!'.format(t=p.type))
         return p
 
-
     def send_ptp_message(self, bytestr, timeout=0):
-        self.logger.debug('Sending ' + binascii.hexlify(bytestr).decode('utf-8')) #.encode('hex'))
+        self.logger.debug('Sending ' + binascii.hexlify(bytestr).decode('utf-8'))  # .encode('hex'))
         return self._bulk_write(bytestr, timeout)
 
     def recv_ptp_message(self, timeout=0):
@@ -123,11 +120,10 @@ class _CameraBase(object):
         self._transaction_id += 1
         return ptp_command
 
-
     def ptp_transaction(self, command, params=[], tx_data=None, receiving=True, timeout=0):
 
-        recvd_data      = None
-        recvd_response  = None
+        recvd_data = None
+        recvd_response = None
 
         ptp_request = self.new_ptp_command(command, params)
         ptp_request_data = None
@@ -140,16 +136,15 @@ class _CameraBase(object):
             ptp_request_data.transaction_id = ptp_request.transaction_id
             ptp_request_data.data = tx_data
 
-
-        #Send request
+        # Send request
         bytes_xfrered = self.send_ptp_message(ptp_request.pack(), timeout)
 
-        #Send data
+        # Send data
         if ptp_request_data is not None:
             bytes_xfered = self.send_ptp_message(ptp_request_data.pack(), timeout)
 
         if receiving:
-            #read first 512 bytes to grab total data length
+            # read first 512 bytes to grab total data length
             buf = self.recv_ptp_message(timeout)
             _, type_ = struct.unpack('<IH', buf[:6])
 
@@ -163,9 +158,9 @@ class _CameraBase(object):
                 recvd_data = ParamContainer(buf)
 
             else:
-                raise TypeError('Unknown PTP USB container type: %d' %(type_))
+                raise TypeError('Unknown PTP USB container type: %d' % (type_))
 
-        #If we haven't got the response yet, try again
+        # If we haven't got the response yet, try again
         if recvd_response is None:
             buf = self.recv_ptp_message(timeout=timeout)
             _, type_ = struct.unpack('<IH', buf[:6])
@@ -174,7 +169,7 @@ class _CameraBase(object):
                 recvd_response = ParamContainer(buf)
 
             else:
-                raise TypeError('Expected response container, received type: %d' %(type_))
+                raise TypeError('Expected response container, received type: %d' % (type_))
 
         if recvd_response is not None:
             self.logger.debug('Response: ' + repr(recvd_response))
@@ -183,10 +178,10 @@ class _CameraBase(object):
 
 
 class PTPCamera(_CameraBase):
-    '''
+    """
     If the PTPCamera class is not initialized with a usb_device handle, the first
     PTP device found will be used.
-    '''
+    """
 
     def __init__(self, usb_device=None, log_level=logging.WARNING):
         self.logger = logging.getLogger('PTPCamera')
@@ -202,33 +197,29 @@ class PTPCamera(_CameraBase):
         self.session_id = 0x1
         _CameraBase.__init__(self, usb_device=usb_device, log_level=log_level)
 
-
     def open_session(self):
         response, data = self.ptp_transaction(PTP_OPCODE.OPEN_SESSION, params=[self.session_id])
         if (response.code != PTP_RESPONSE_CODE.OK) and (response.code != PTP_RESPONSE_CODE.SESSION_ALREADY_OPENED):
             raise ValueError('Could not open PTP session (got 0x{:x})'.format(response.code))
         return True
 
-
     def close_session(self):
         response, data = self.ptp_transaction(PTP_OPCODE.CLOSE_SESSION)
         return self.check_response(response)
-
 
     def initiate_capture(self):
         response, data = self.ptp_transaction(PTP_OPCODE.INITIATE_CAPTURE, params=[0x0, 0x0])
         self.check_response(response)
         return response, data
 
-
     def capture(self):
         self.open_session()
         response, data = self.initiate_capture()
         self.check_response(response)
 
-        #We should now receive an ObjectAdded event followed by a CaptureComplete event
-        #However, the Nikon J3 often (but not always) sends these two events out of order.
-        #TODO: sometimes we receive DevicePropChanged instead of ObjectAdded from the Nikon J3
+        # We should now receive an ObjectAdded event followed by a CaptureComplete event
+        # However, the Nikon J3 often (but not always) sends these two events out of order.
+        # TODO: sometimes we receive DevicePropChanged instead of ObjectAdded from the Nikon J3
         obj_added_event = None
         capture_complete_event = None
 
@@ -247,10 +238,9 @@ class PTPCamera(_CameraBase):
         if capture_complete_event is None:
             raise IOError('CaptureComplete event was not received')
 
-        #self.close_session()
+        # self.close_session()
         object_handle = obj_added_event.params[0]
         return object_handle
-
 
     def capture_and_download(self):
         start_time = time.time()
@@ -260,12 +250,11 @@ class PTPCamera(_CameraBase):
 
         self.logger.info('total time to capture and download: {s:0.4f} seconds'.format(s=total_time))
         img_size = data.length
-        self.logger.debug('image size ' + str(img_size-12))
+        self.logger.debug('image size ' + str(img_size - 12))
 
-        #f = open('/tmp/foo.jpg', 'w')
-        #f.write(data.data)
-        #self.logger.debug('wrote tmp file')
-
+        # f = open('/tmp/foo.jpg', 'w')
+        # f.write(data.data)
+        # self.logger.debug('wrote tmp file')
 
     def check_response(self, response):
         if response.code != PTP_RESPONSE_CODE.OK:
@@ -273,9 +262,8 @@ class PTPCamera(_CameraBase):
         return True
 
 
-
 class CHDKCamera(_CameraBase):
-    '''
+    """
     For use with Canon cameras using the CHDK firmware.
 
     Available functions (see docstrings for info):
@@ -287,42 +275,41 @@ class CHDKCamera(_CameraBase):
         read_script_message
         write_script_message
 
-    '''
+    """
 
     def __init__(self, usb_device=None):
         _CameraBase.__init__(self, usb_device)
 
-
     def get_chdk_version(self):
-        '''
+        """
         Retrieves the PTP-core (MAJOR,MINOR) version tuple from the
         camera.
 
         Note:  This is different than the (MAJOR,MINOR) version tuple
         for the live_view PTP extensions.
-        '''
+        """
         recvd_response, _ = self.ptp_transaction(command=PTP_OC_CHDK,
-            params=[CHDKOperations.Version],
-            tx_data=None, receiving=False, timeout=0)
+                                                 params=[CHDKOperations.Version],
+                                                 tx_data=None, receiving=False, timeout=0)
 
         major, minor = recvd_response.params
         return major, minor
 
     def check_script_status(self):
-        '''
+        """
         :returns: CHDKScriptStatus
 
         Check status of running scripts on camera
-        '''
+        """
         recvd_response, _ = self.ptp_transaction(command=PTP_OC_CHDK,
-            params=[CHDKOperations.ScriptStatus],
-            tx_data=None, receiving=False, timeout=0)
+                                                 params=[CHDKOperations.ScriptStatus],
+                                                 tx_data=None, receiving=False, timeout=0)
 
         status = recvd_response.params[0]
         return status
 
     def execute_lua(self, script, block=False):
-        '''
+        """
         :param script: LUA script to execute on camera
         :type script: str
 
@@ -335,14 +322,14 @@ class CHDKCamera(_CameraBase):
 
         Values returned by the LUA script are passed in individual
         messages.
-        '''
-        #NULL terminate script if necessary
+        """
+        # NULL terminate script if necessary
         if not script.endswith('\0'):
             script += '\0'
 
         recvd_response, _ = self.ptp_transaction(command=PTP_OC_CHDK,
-            params=[CHDKOperations.ExecuteScript, CHDKScriptLanguage.LUA],
-            tx_data=script, receiving=False, timeout=0)
+                                                 params=[CHDKOperations.ExecuteScript, CHDKScriptLanguage.LUA],
+                                                 tx_data=script, receiving=False, timeout=0)
 
         script_id, script_error = recvd_response.params
         if not block:
@@ -353,17 +340,17 @@ class CHDKCamera(_CameraBase):
             return script_id, script_error, msgs
 
     def read_script_message(self):
-        '''
+        """
         Checks camera for messages created by running scripts.
-        '''
+        """
         recvd_response, recvd_data = self.ptp_transaction(command=PTP_OC_CHDK,
-            params=[CHDKOperations.ReadScriptMsg, CHDKScriptLanguage.LUA],
-            tx_data=None, receiving=True, timeout=0)
+                                                          params=[CHDKOperations.ReadScriptMsg, CHDKScriptLanguage.LUA],
+                                                          tx_data=None, receiving=True, timeout=0)
 
         return recvd_response, recvd_data
 
     def write_script_message(self, message, script_id=0):
-        '''
+        """
         :param message: Message to send
         :type message: str
 
@@ -371,21 +358,21 @@ class CHDKCamera(_CameraBase):
         :type script_id: int
 
         Passes a message to a running script.
-        '''
+        """
         recvd_response, _ = self.ptp_transaction(command=PTP_OC_CHDK,
-            params=[CHDKOperations.WriteScriptMsg, script_id],
-            tx_data=message, receiving=False, timeout=0)
+                                                 params=[CHDKOperations.WriteScriptMsg, script_id],
+                                                 tx_data=message, receiving=False, timeout=0)
 
         msg_status = recvd_response.params[0]
         return msg_status
 
     @classmethod
     def __pack_file_for_upload(cls, local_filename, remote_filename=None):
-        '''
+        """
         Private method to create a buffer holding
         filename's contents for uploading to the camera.
         called in `CHDKCamera.upload_file'
-        '''
+        """
         if remote_filename is None:
             remote_filename = path.basename(remote_filename)
 
@@ -393,7 +380,7 @@ class CHDKCamera(_CameraBase):
             remote_filename += '\0'
 
         filename_len = len(remote_filename)
-        fmt = '<I%dc' %(filename_len)
+        fmt = '<I%dc' % (filename_len)
         filebuf = struct.pack(fmt, filename_len, remote_filename)
         with open(local_filename, 'rb') as fid:
             contents = fid.read(-1)
@@ -404,7 +391,7 @@ class CHDKCamera(_CameraBase):
         return filebuf
 
     def upload_file(self, local_filename, remote_filename=None, timeout=0):
-        '''
+        """
         :param local_filename:  Name of file on computer
         :type local_filename: str
 
@@ -414,58 +401,57 @@ class CHDKCamera(_CameraBase):
 
         Upload a file to the camera.  If remote_filename is None, the
         file is uploaded to the root folder on the SD card.
-        '''
+        """
         filestr = self.__pack_file_for_upload(local_filename, remote_filename)
         dlfile_response, dlfile_data = self.ptp_transaction(command=PTP_OC_CHDK,
-            params=[CHDKOperations.UploadFile],
-            tx_data=filestr, receiving=False, timeout=timeout)
+                                                            params=[CHDKOperations.UploadFile],
+                                                            tx_data=filestr, receiving=False, timeout=timeout)
 
         if ret_code != CHDKResponses.OK:
             raise PTPError(tempdata_response.params[0], CHDKResponses.message[ret_code])
 
-
     def download_file(self, filename, timeout=0):
-        '''
+        """
         :param filename: Full path of file to download
         :type filename:  str
 
         Download a file from the camera
-        '''
-        #CHDK Download process:
-        #  - Store desried filename on camera w/ TempData
-        #  - Send DownloadFile command
+        """
+        # CHDK Download process:
+        # - Store desried filename on camera w/ TempData
+        # - Send DownloadFile command
 
         if not filename.endswith('\0'):
             filename += '\0'
 
         tempdata_response, _ = self.ptp_transaction(command=PTP_OC_CHDK,
-            params=[CHDKOperations.TempData, 0],
-            tx_data=filename, receiving=False, timeout=timeout)
+                                                    params=[CHDKOperations.TempData, 0],
+                                                    tx_data=filename, receiving=False, timeout=timeout)
 
         ret_code = tempdata_response.params[0]
-        #check response for problems
+        # check response for problems
         if ret_code != CHDKResponses.OK:
             raise PTPError(tempdata_response.params[0], CHDKResponses.message[ret_code])
 
         dlfile_response, dlfile_data = self.ptp_transaction(command=PTP_OC_CHDK,
-            params=[CHDKOperations.DownloadFile],
-            tx_data=None, receiving=True, timeout=timeout)
+                                                            params=[CHDKOperations.DownloadFile],
+                                                            tx_data=None, receiving=True, timeout=timeout)
 
         ret_code = tempdata_response.params[0]
-        #check response for problems
+        # check response for problems
         if ret_code != CHDKResponses.OK:
             raise PTPError(tempdata_response.params[0], CHDKResponses.message[ret_code])
 
-        #Clear tempdata field
+        # Clear tempdata field
         clear_response, _ = self.ptp_transaction(command=PTP_OC_CHDK,
-            params=[CHDKOperations.TempData, CHDKTempData.CLEAR],
-            tx_data=None, receiving=False, timeout=timeout)
+                                                 params=[CHDKOperations.TempData, CHDKTempData.CLEAR],
+                                                 tx_data=None, receiving=False, timeout=timeout)
 
-        #Return the raw string buffer
+        # Return the raw string buffer
         return dlfile_data.data
 
     def get_live_view_data(self, liveview=True, overlay=False, palette=False):
-        '''
+        """
         :param liveview:  Return the liveview image
         :type liveview: bool
 
@@ -478,7 +464,7 @@ class CHDKCamera(_CameraBase):
         :returns: :class:`typdefs.CHDK_LV_Data`
 
         Grabs a live view image from the camera.
-        '''
+        """
         flags = 0
 
         if liveview:
@@ -491,8 +477,8 @@ class CHDKCamera(_CameraBase):
             flags |= CHDKLVTransfer.PALETTE
 
         recvd_response, recvd_data = self.ptp_transaction(command=PTP_OC_CHDK,
-            params=[CHDKOperations.GetDisplayData, flags],
-            tx_data=None, receiving=True, timeout=0)
+                                                          params=[CHDKOperations.GetDisplayData, flags],
+                                                          tx_data=None, receiving=True, timeout=0)
 
         if recvd_data.type == PTP_CONTAINER_TYPE.DATA:
             lv_data = CHDK_LV_Data(recvd_data.data)
@@ -503,14 +489,14 @@ class CHDKCamera(_CameraBase):
         return recvd_response, lv_data
 
     def _wait_for_script_return(self, timeout=0):
-        '''
+        """
         Polls the camera every 50ms.
 
         Reads queued messages if present, sleeps again if
         a script is currently running.
 
         Returns read messages when no scripts are running.
-        '''
+        """
         msg_count = 1
         msgs = []
         t_start = time.time()
@@ -534,6 +520,6 @@ class CHDKCamera(_CameraBase):
                 break
 
             else:
-                raise PTPError(StandardResponses.UNDEFINED, "Invalid response for script status: 0x%X" %(STATUS))
+                raise PTPError(StandardResponses.UNDEFINED, "Invalid response for script status: 0x%X" % (STATUS))
 
         return msgs

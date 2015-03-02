@@ -1,4 +1,4 @@
-'''
+"""
 Python package for interacting with digital cameras using the
 Picture Transfer Protocol (PTP) over USB.  Similar to pyptp
 (see references), but simpler and faster.  
@@ -38,18 +38,16 @@ References and Thanks:
 
 Zachary Berkowitz
 zac.berkowitz@gmail.com
-'''
+"""
 
 from ptp2.camera import *
 import ptp2.util
 
+
 class PTPError(Exception):
+    def __init__(self, err_code, err_msg=''):
+        self.value = err_code
+        self.msg = err_msg
 
-	def __init__(self, err_code, err_msg=''):
-		self.value = err_code
-		self.msg   = err_msg
-
-	def __str__(self):
-		return "PTPError(%04x: %s)" % (self.value, self.msg)
-
-
+    def __str__(self):
+        return "PTPError(%04x: %s)" % (self.value, self.msg)
